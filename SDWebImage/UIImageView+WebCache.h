@@ -47,6 +47,24 @@
  */
 @interface UIImageView (WebCache)
 
+- (void)sd_roundCornersForAspectFit:(CGFloat)cornerRadius;
+
+/**
+ * Set the imageView `image` with an `url` and a placeholder.
+ *
+ * The download is asynchronous and cached.
+ *
+ * @param url         The url for the image.
+ * @param placeholder The image to be set initially, until the image request finishes.
+ * @param cornerRadius The corner radius applied to the layer of the image.
+ * @param options     The options to use when downloading the image. @see SDWebImageOptions for the possible values.
+ * @see sd_setImageWithURL:placeholderImage:options:
+ */
+- (void)sd_setImageWithURL:(nullable NSURL *)url
+          placeholderImage:(nullable UIImage *)placeholder
+              cornerRadius:(CGFloat)cornerRadius
+                   options:(SDWebImageOptions)options;
+
 /**
  * Set the imageView `image` with an `url`.
  *

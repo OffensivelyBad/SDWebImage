@@ -48,6 +48,104 @@ static char TAG_ACTIVITY_SHOW;
 - (void)sd_internalSetImageWithURL:(nullable NSURL *)url
                   placeholderImage:(nullable UIImage *)placeholder
                            options:(SDWebImageOptions)options
+                      cornerRadius:(CGFloat)cornerRadius
+                      operationKey:(nullable NSString *)operationKey
+                     setImageBlock:(nullable SDSetImageBlock)setImageBlock
+                          progress:(nullable SDWebImageDownloaderProgressBlock)progressBlock
+                         completed:(nullable SDExternalCompletionBlock)completedBlock {
+    NSString *validOperationKey = operationKey ?: NSStringFromClass([self class]);
+    [self sd_cancelImageLoadOperationWithKey:validOperationKey];
+    objc_setAssociatedObject(self, &imageURLKey, url, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    
+    if (!(options & SDWebImageDelayPlaceholder)) {
+        dispatch_main_async_safe(^{
+            [self sd_setImage:placeholder imageData:nil basedOnClassOrViaCustomSetImageBlock:setImageBlock];
+        });
+    }
+    
+    if (url) {
+        // check if activityView is enabled or not
+        if ([self sd_showActivityIndicatorView]) {
+            [self sd_addActivityIndicator];
+        }
+        
+        __weak __typeof(self)wself = self;
+        id <SDWebImageOperation> operation = [SDWebImageManager.sharedManager loadImageWithURL:url options:options progress:progressBlock completed:^(UIImage *image, NSData *data, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+            __strong __typeof (wself) sself = wself;
+            [sself sd_removeActivityIndicator];
+            if (!sself) {
+                return;
+            }
+            dispatch_main_async_safe(^{
+                if (!sself) {
+                    return;
+                }
+                if (image && (options & SDWebImageAvoidAutoSetImage) && completedBlock) {
+                    completedBlock(image, error, cacheType, url);
+                    return;
+                } else if (image && (options & SDWebImageCornerRadius)) {
+                    if (options & SDWebImageAdaptBackground) {
+                        UIColor *backColor = [self colorAtPixel:CGPointMake(0, 0) forImage:image];
+                        self.backgroundColor = backColor;
+                    }
+                    [sself sd_setImage:image imageData:data cornerRadius:cornerRadius basedOnClassOrViaCustomSetImageBlock:setImageBlock];
+                    [sself sd_setNeedsLayout];
+                } else if (image) {
+                    if (options & SDWebImageAdaptBackground) {
+                        UIColor *backColor = [self colorAtPixel:CGPointMake(0, 0) forImage:image];
+                        self.backgroundColor = backColor;
+                    }
+                    [sself sd_setImage:image imageData:data basedOnClassOrViaCustomSetImageBlock:setImageBlock];
+                    [sself sd_setNeedsLayout];
+                } else {
+                    if ((options & SDWebImageDelayPlaceholder)) {
+                        [sself sd_setImage:placeholder imageData:nil basedOnClassOrViaCustomSetImageBlock:setImageBlock];
+                        [sself sd_setNeedsLayout];
+                    }
+                }
+                if (completedBlock && finished) {
+                    completedBlock(image, error, cacheType, url);
+                }
+            });
+        }];
+        [self sd_setImageLoadOperation:operation forKey:validOperationKey];
+    } else {
+        dispatch_main_async_safe(^{
+            [self sd_removeActivityIndicator];
+            if (completedBlock) {
+                NSError *error = [NSError errorWithDomain:SDWebImageErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey : @"Trying to load a nil url"}];
+                completedBlock(nil, error, SDImageCacheTypeNone, url);
+            }
+        });
+    }
+}
+
+- (void)sd_setImage:(UIImage *)image imageData:(NSData *)imageData cornerRadius:(CGFloat)cornerRadius basedOnClassOrViaCustomSetImageBlock:(SDSetImageBlock)setImageBlock {
+    if (setImageBlock) {
+        setImageBlock(image, imageData);
+        return;
+    }
+    
+#if SD_UIKIT || SD_MAC
+    if ([self isKindOfClass:[UIImageView class]]) {
+        UIImageView *imageView = (UIImageView *)self;
+        imageView.image = image;
+        [imageView sd_roundCornersForAspectFit:(CGFloat)cornerRadius];
+    }
+#endif
+    
+#if SD_UIKIT
+    if ([self isKindOfClass:[UIButton class]]) {
+        UIButton *button = (UIButton *)self;
+        [button setImage:image forState:UIControlStateNormal];
+    }
+#endif
+}
+
+
+- (void)sd_internalSetImageWithURL:(nullable NSURL *)url
+                  placeholderImage:(nullable UIImage *)placeholder
+                           options:(SDWebImageOptions)options
                       operationKey:(nullable NSString *)operationKey
                      setImageBlock:(nullable SDSetImageBlock)setImageBlock
                           progress:(nullable SDWebImageDownloaderProgressBlock)progressBlock

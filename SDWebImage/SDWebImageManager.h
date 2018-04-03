@@ -116,6 +116,11 @@ typedef NS_OPTIONS(NSUInteger, SDWebImageOptions) {
      * By default, when you use `SDWebImageTransition` to do some view transition after the image load finished, this transition is only applied for image download from the network. This mask can force to apply view transition for memory and disk cache as well.
      */
     SDWebImageForceTransition = 1 << 16
+    
+    /**
+     * Set the corner radius of the image
+     */
+    SDWebImageCornerRadius = 1 << 17
 };
 
 typedef void(^SDExternalCompletionBlock)(UIImage * _Nullable image, NSError * _Nullable error, SDImageCacheType cacheType, NSURL * _Nullable imageURL);

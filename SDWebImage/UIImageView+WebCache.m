@@ -16,6 +16,28 @@
 
 @implementation UIImageView (WebCache)
 
+- (void)sd_roundCornersForAspectFit:(CGFloat)cornerRadius {
+    if (self.image) {
+        double boundsScale = self.bounds.size.width / self.bounds.size.height;
+        double imageScale = self.image.size.width / self.image.size.height;
+        
+        CGRect drawingRect = self.bounds;
+        
+        if (boundsScale > imageScale) {
+            drawingRect.size.width = drawingRect.size.height * imageScale;
+            drawingRect.origin.x = (self.bounds.size.width - drawingRect.size.width) / 2;
+        }
+        else {
+            drawingRect.size.height = drawingRect.size.width / imageScale;
+            drawingRect.origin.y = (self.bounds.size.height - drawingRect.size.height) / 2;
+        }
+        UIBezierPath *path = [UIBezierPath bezierPathWithRoundedRect:drawingRect cornerRadius:cornerRadius];
+        CAShapeLayer *mask = [CAShapeLayer new];
+        [mask setPath:path.CGPath];
+        [self.layer setMask:mask];
+    }
+}
+
 - (void)sd_setImageWithURL:(nullable NSURL *)url {
     [self sd_setImageWithURL:url placeholderImage:nil options:0 progress:nil completed:nil];
 }
